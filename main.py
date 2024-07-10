@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from util import *
+from time import sleep
 
 def downloadByCameraId(cameraIndexCode, beginInterval, endInterval):
   beginStr = beginInterval.isoformat()
@@ -18,18 +19,20 @@ def downloadByCameraId(cameraIndexCode, beginInterval, endInterval):
     'url': url,
     'authentication': authentication,
     'beginTime': beginStr,
-    'endTime': endStr
+    'endTime': endStr,
+    'videoType': 1
   })
   downloadId = response['downloadID']
 
   # some time later...
+  sleep(5)
 
   response = hikRequest('/artemis/api/video/v1/downloadURL', {
     'downloadID': downloadId
   })
   downloadUrl = response['url']
 
-  downloadFromUrl(beginInterval, downloadUrl)
+  downloadFromUrl(beginInterval.isoformat(), downloadUrl.replace(':9016:443', ''))
 
 BEGIN_TIME, END_TIME, CAMERA_IDS = readConfig()['BEGIN_TIME'], readConfig()['END_TIME'], readConfig()['CAMERA_IDS'] 
 
