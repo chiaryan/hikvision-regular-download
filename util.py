@@ -5,6 +5,7 @@ import hashlib
 from base64 import b64encode
 from datetime import time
 from configparser import ConfigParser
+import os
 
 def readConfig(): 
   config = ConfigParser()
@@ -56,13 +57,12 @@ x-ca-key:{USER_ID}
   }
 
   response = requests.request("POST", url, headers=headers, data=payload)
-  print(response.json()['data'])
   return response.json()['data']
   
 
 def downloadFromUrl(filename, url):
   bts = requests.request('GET', url, verify=False).content
-  name = filename.replace(':', '_')
-  with open(f'{name}.mp4', 'wb') as file:
+  os.makedirs(os.path.dirname(filename), exist_ok=True)
+  with open(filename, 'wb') as file:
     file.write(bts)
 
