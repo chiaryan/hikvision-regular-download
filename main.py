@@ -35,7 +35,7 @@ def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterva
   try:
     downloadUrl = response['url']
   except KeyError:
-    raise(f'could not download url for {beginInterval.isoformat()} to {endInterval.isoformat()}')
+    raise(Exception(f'could not download url for camera {cameraIndexCode} from {beginInterval.isoformat()} to {endInterval.isoformat()}'))
 
   filename = f'video/{cameraIndexCode}/{beginInterval.date().isoformat()}/{beginInterval.isoformat().replace(":", "_")}.mp4'
 
@@ -52,4 +52,4 @@ for cid in CAMERA_IDS:
       downloadByCameraId(cid, beginInterval, endInterval)
     except Exception as e:
       with open('error.log', 'a') as file:
-        file.write(e)
+        file.write(str(e) + '\n')
