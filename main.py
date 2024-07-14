@@ -31,7 +31,11 @@ def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterva
   response = hikRequest('/artemis/api/video/v1/downloadURL', {
     'downloadID': downloadId
   })
-  downloadUrl = response['url']
+  downloadUrl = None
+  try:
+    downloadUrl = response['url']
+  except KeyError:
+    raise(f'could not download url for {beginInterval.isoformat()} to {endInterval.isoformat()}')
 
   filename = f'video/{cameraIndexCode}/{beginInterval.date().isoformat()}/{beginInterval.isoformat().replace(":", "_")}.mp4'
 
@@ -44,4 +48,8 @@ BEGIN_DATETIME, END_DATETIME = [datetime.combine(TODAY, t) for t in (BEGIN_TIME,
 
 for cid in CAMERA_IDS:
   for (beginInterval, endInterval) in iterDate(BEGIN_DATETIME, END_DATETIME, timedelta(minutes=1)):
-    downloadByCameraId(cid, beginInterval, endInterval)
+    try:
+      downloadByCameraId(cid, beginInterval, endInterval)
+    except Exception as e:
+      with open('error.log', 'a') as file:
+        file.write(e)
