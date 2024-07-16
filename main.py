@@ -3,6 +3,27 @@ from util import *
 from time import sleep
 # from stubs import *
 
+TIMEOUT = 8.0
+INTERVAL = 0.5
+
+class HikApiException(Exception):
+  pass
+
+class HikApiTimeoutException(HikApiException):
+  pass
+
+def retrydownloadUrl(downloadId: str):
+  t = 0.0
+  while t <= TIMEOUT:
+    response = hikRequest('/artemis/api/video/v1/downloadURL', {
+    'downloadID': downloadId
+    })
+    if ('url' in response):
+      return response['url']
+    sleep(INTERVAL)
+    t += INTERVAL
+  raise HikApiTimeoutException
+
 def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterval: datetime):
   beginStr = beginInterval.isoformat()
   endStr = endInterval.isoformat()
@@ -25,17 +46,11 @@ def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterva
   })
   downloadId = response['downloadID']
 
-  # some time later...
-  sleep(5)
-
-  response = hikRequest('/artemis/api/video/v1/downloadURL', {
-    'downloadID': downloadId
-  })
   downloadUrl = None
   try:
-    downloadUrl = response['url']
-  except KeyError:
-    raise(Exception(f'could not download url for camera {cameraIndexCode} from {beginInterval.isoformat()} to {endInterval.isoformat()}'))
+    downloadUrl = retrydownloadUrl(downloadId)
+  except HikApiTimeoutException:
+    raise(HikApiException(f'could not download url for camera {cameraIndexCode} from {beginInterval.isoformat()} to {endInterval.isoformat()}'))
 
   filename = f'video/{cameraIndexCode}/{beginInterval.date().isoformat()}/{beginInterval.isoformat().replace(":", "_")}.mp4'
 
@@ -50,6 +65,6 @@ for cid in CAMERA_IDS:
   for (beginInterval, endInterval) in iterDate(BEGIN_DATETIME, END_DATETIME, timedelta(minutes=1)):
     try:
       downloadByCameraId(cid, beginInterval, endInterval)
-    except Exception as e:
+    except HikApiException as e:
       with open('error.log', 'a') as file:
         file.write(str(e) + '\n')
