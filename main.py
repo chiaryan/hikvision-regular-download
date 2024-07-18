@@ -42,14 +42,22 @@ def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterva
   downloadFromUrl(filename, downloadUrl.replace(':9016:443', ''))
 
 BEGIN_TIME, END_TIME, CAMERA_IDS = readConfig()['BEGIN_TIME'], readConfig()['END_TIME'], readConfig()['CAMERA_IDS'] 
+if 'DATES' in readConfig():
+  DATES = readConfig()['DATES']
+else:
+  DATE = date.today()
+  if DATE.isoweekday() - 1 not in readConfig()['WEEKDAYS']:
+    print('not today exiting')
+    exit(0)
+  else:
+    DATES = [DATE]
 
-TODAY = date.today()
-BEGIN_DATETIME, END_DATETIME = [datetime.combine(TODAY, t) for t in (BEGIN_TIME, END_TIME)]
-
-for cid in CAMERA_IDS:
-  for (beginInterval, endInterval) in iterDate(BEGIN_DATETIME, END_DATETIME, timedelta(minutes=1)):
-    try:
-      downloadByCameraId(cid, beginInterval, endInterval)
-    except Exception as e:
-      with open('error.log', 'a') as file:
-        file.write(str(e) + '\n')
+for DATE in DATES:
+  BEGIN_DATETIME, END_DATETIME = [datetime.combine(DATE, t) for t in (BEGIN_TIME, END_TIME)]
+  for cid in CAMERA_IDS:
+    for (beginInterval, endInterval) in iterDate(BEGIN_DATETIME, END_DATETIME, timedelta(minutes=1)):
+      try:
+        downloadByCameraId(cid, beginInterval, endInterval)
+      except Exception as e:
+        with open('error.log', 'a') as file:
+          file.write(str(e) + '\n')
