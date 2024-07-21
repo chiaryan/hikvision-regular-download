@@ -6,9 +6,6 @@ from time import sleep
 TIMEOUT = 8.0
 INTERVAL = 0.5
 
-class HikApiException(Exception):
-  pass
-
 class HikApiTimeoutException(HikApiException):
   pass
 
