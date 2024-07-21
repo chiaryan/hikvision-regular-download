@@ -7,6 +7,9 @@ from datetime import time
 from configparser import ConfigParser
 import os
 
+class HikApiException(Exception):
+  pass
+
 def readConfig(): 
   config = ConfigParser()
   config.read("config.ini")
@@ -57,6 +60,9 @@ x-ca-key:{USER_ID}
   }
 
   response = requests.request("POST", url, headers=headers, data=payload)
+  responsejson = response.json()
+  if 'data' not in responsejson:
+    raise HikApiException(f'no data field in response from endpoint {endpoint}, response is {response}, json is {responsejson}')
   return response.json()['data']
   
 
