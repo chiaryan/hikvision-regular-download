@@ -70,6 +70,6 @@ for DATE in DATES:
     for (beginInterval, endInterval) in iterDate(BEGIN_DATETIME, END_DATETIME, timedelta(minutes=1)):
       try:
         downloadByCameraId(cid, beginInterval, endInterval)
-      except HikApiException as e:
+      except (HikApiException, requests.exceptions.ConnectionError) as e:
         with open('error.log', 'a') as file:
-          file.write(str(e) + '\n')
+          file.write(f'error downloading from camera {cid} from {beginInterval.isoformat()} to {endInterval.isoformat()}: {str(e)}\n')
