@@ -47,7 +47,7 @@ def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterva
   try:
     downloadUrl = retrydownloadUrl(downloadId)
   except HikApiTimeoutException:
-    raise(HikApiException(f'could not download url for camera {cameraIndexCode} from {beginInterval.isoformat()} to {endInterval.isoformat()}'))
+    raise(HikApiException(f'ran out of retries'))
 
   filename = f'video/{cameraIndexCode}/{beginInterval.date().isoformat()}/{beginInterval.isoformat().replace(":", "_")}.mp4'
 
