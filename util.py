@@ -26,7 +26,7 @@ def readConfig():
     'BEGIN_TIME': time.fromisoformat(values['beginTime']),
     'END_TIME': time.fromisoformat(values['endTime']),
     'CAMERA_IDS': values['cameras'].split(','),
-    'WEEKDAYS': {parsetime(d, '%A').tm_wday for d in values['days'].split(',')} if 'days' in values else set(range(0, 6))
+    'WEEKDAYS': {parsetime(d, '%A').tm_wday for d in values['days'].split(',')} if 'days' in values else set(range(0, 7))
   }
 
   if 'dates' in values:
