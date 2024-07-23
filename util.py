@@ -3,23 +3,36 @@ import json
 import hmac
 import hashlib
 from base64 import b64encode
-from datetime import time
-from configparser import ConfigParser
+from datetime import time, date
+from configparser import ConfigParser, Error as ConfigParserError
 import os
+from time import strptime as parsetime
+
+class InvalidWeekdayError(ConfigParserError):
+  pass
+
+class HikApiException(Exception):
+  pass
 
 def readConfig(): 
   config = ConfigParser()
   config.read("config.ini")
   values = config['VALUES']
 
-  return {
+  ret = {
     'OPENAPI_DOMAIN': values['domain'],
     'USER_ID': values['userId'],
     'USER_SECRET': values['secret'],
     'BEGIN_TIME': time.fromisoformat(values['beginTime']),
     'END_TIME': time.fromisoformat(values['endTime']),
-    'CAMERA_IDS': values['cameras'].split(',')
+    'CAMERA_IDS': values['cameras'].split(','),
+    'WEEKDAYS': {parsetime(d, '%A').tm_wday for d in values['days'].split(',')} if 'days' in values else set(range(0, 7))
   }
+
+  if 'dates' in values:
+    ret['DATES'] = [date.fromisoformat(s) for s in values['dates'].split(',')]
+
+  return ret
 
 OPENAPI_DOMAIN, USER_ID, USER_SECRET = readConfig()['OPENAPI_DOMAIN'], readConfig()['USER_ID'], readConfig()['USER_SECRET']
 
@@ -57,6 +70,9 @@ x-ca-key:{USER_ID}
   }
 
   response = requests.request("POST", url, headers=headers, data=payload)
+  responsejson = response.json()
+  if 'data' not in responsejson:
+    raise HikApiException(f'no data field in response from endpoint {endpoint}, response is {response}, json is {responsejson}')
   return response.json()['data']
 
 def findCamera(cameraInfos: list[dict[str, str]], property: str, value: str) -> dict[str, str]:
