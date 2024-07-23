@@ -58,7 +58,29 @@ x-ca-key:{USER_ID}
 
   response = requests.request("POST", url, headers=headers, data=payload)
   return response.json()['data']
-  
+
+def findCamera(cameraInfos: list[dict[str, str]], property: str, value: str) -> dict[str, str]:
+  return next(c for c in cameraInfos if c[property] == value)
+
+def getCameraIdsFromNames(names: list[str]) -> list[str]:
+  response = hikRequest('/artemis/api/resource/v1/cameras', {
+    'pageNo': 1,
+    'pageSize': 500,
+    'bRecordSetting': 0
+  })
+  cameraInfos: list[dict[str, str]] = response['list']
+
+  return [findCamera(cameraInfos, 'cameraName', cn)['cameraIndexCode'] for cn in names]
+
+def getCameraNamesFromIds(ids: list[str]) -> list[str]:
+  response = hikRequest('/artemis/api/resource/v1/cameras', {
+    'pageNo': 1,
+    'pageSize': 500,
+    'bRecordSetting': 0
+  })
+  cameraInfos: list[dict[str, str]] = response['list']
+
+  return [findCamera(cameraInfos, 'cameraIndexCode', cid)['cameraName'] for cid in ids]
 
 def downloadFromUrl(filename, url):
   bts = requests.request('GET', url, verify=False).content
