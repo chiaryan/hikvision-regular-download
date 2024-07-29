@@ -1,10 +1,11 @@
 from datetime import date, datetime, timedelta
-from util import *
+# from util import *
 from time import sleep
-# from stubs import *
+from stubs import *
 
 TIMEOUT = 8.0
 INTERVAL = 0.5
+CONFIG = readConfig()
 
 class HikApiTimeoutException(HikApiException):
   pass
@@ -21,7 +22,7 @@ def retrydownloadUrl(downloadId: str):
     t += INTERVAL
   raise HikApiTimeoutException
 
-def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterval: datetime):
+def downloadByCameraId(cameraIndexCode: str, cameraName: str, beginInterval: datetime, endInterval: datetime):
   beginStr = beginInterval.isoformat()
   endStr = endInterval.isoformat()
   response = hikRequest('/artemis/api/video/v1/cameras/playbackURLs', {
@@ -49,27 +50,36 @@ def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterva
   except HikApiTimeoutException:
     raise(HikApiException(f'ran out of retries'))
 
-  filename = f'video/{cameraIndexCode}/{beginInterval.date().isoformat()}/{beginInterval.isoformat().replace(":", "_")}.mp4'
+  filename = f'video/{cameraName}/{beginInterval.date().isoformat()}/{beginInterval.isoformat().replace(":", "_")}.mp4'
 
   downloadFromUrl(filename, downloadUrl.replace(':9016:443', ''))
 
-BEGIN_TIME, END_TIME, CAMERA_IDS = readConfig()['BEGIN_TIME'], readConfig()['END_TIME'], readConfig()['CAMERA_IDS'] 
-if 'DATES' in readConfig():
-  DATES = readConfig()['DATES']
+BEGIN_TIME, END_TIME = CONFIG['BEGIN_TIME'], CONFIG['END_TIME']
+if 'DATES' in CONFIG:
+  DATES = CONFIG['DATES']
 else:
   DATE = date.today()
-  if DATE.isoweekday() - 1 not in readConfig()['WEEKDAYS']:
+  if DATE.isoweekday() - 1 not in CONFIG['WEEKDAYS']:
     print('not today exiting')
     exit(0)
   else:
     DATES = [DATE]
 
+if 'CAMERA_IDS' in CONFIG:
+  CAMERA_IDS = CONFIG['CAMERA_IDS']
+  CAMERA_NAMES = getCameraNamesFromIds(CAMERA_IDS)
+elif 'CAMERA_NAMES' in CONFIG:
+  CAMERA_NAMES = CONFIG['CAMERA_NAMES']
+  CAMERA_IDS = getCameraIdsFromNames(CAMERA_NAMES)
+else:
+  assert False, "no 'CAMERA_NAMES' or 'CAMERA_IDS' property"
+
 for DATE in DATES:
   BEGIN_DATETIME, END_DATETIME = [datetime.combine(DATE, t) for t in (BEGIN_TIME, END_TIME)]
-  for cid in CAMERA_IDS:
+  for cId, cName in zip(CAMERA_IDS, CAMERA_NAMES):
     for (beginInterval, endInterval) in iterDate(BEGIN_DATETIME, END_DATETIME, timedelta(minutes=1)):
       try:
-        downloadByCameraId(cid, beginInterval, endInterval)
+        downloadByCameraId(cId, cName, beginInterval, endInterval)
       except (HikApiException, requests.exceptions.ConnectionError) as e:
         with open('error.log', 'a') as file:
-          file.write(f'error downloading from camera {cid} from {beginInterval.isoformat()} to {endInterval.isoformat()}: {str(e)}\n')
+          file.write(f'error downloading from camera {cName} from {beginInterval.isoformat()} to {endInterval.isoformat()}: {str(e)}\n')
