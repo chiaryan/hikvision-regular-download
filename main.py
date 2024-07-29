@@ -24,6 +24,12 @@ def retrydownloadUrl(downloadId: str):
 def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterval: datetime):
   beginStr = beginInterval.isoformat()
   endStr = endInterval.isoformat()
+  filename = f'video/{cameraIndexCode}/{beginInterval.date().isoformat()}/{beginInterval.isoformat().replace(":", "_")}.mp4'
+
+  if os.path.exists(filename):
+    print(f'{filename} exists, skipping')
+    return
+
   response = hikRequest('/artemis/api/video/v1/cameras/playbackURLs', {
     'cameraIndexCode': cameraIndexCode,
     'recordType': '0',
@@ -48,8 +54,6 @@ def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterva
     downloadUrl = retrydownloadUrl(downloadId)
   except HikApiTimeoutException:
     raise(HikApiException(f'ran out of retries'))
-
-  filename = f'video/{cameraIndexCode}/{beginInterval.date().isoformat()}/{beginInterval.isoformat().replace(":", "_")}.mp4'
 
   downloadFromUrl(filename, downloadUrl.replace(':9016:443', ''))
 
