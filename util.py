@@ -69,7 +69,11 @@ x-ca-key:{USER_ID}
     'Content-Type': 'application/json'
   }
 
-  response = requests.request("POST", url, headers=headers, data=payload)
+  try:
+    response = requests.request("POST", url, headers=headers, data=payload)
+  except requests.ConnectionError as e:
+    raise HikApiException(str(e))
+  
   responsejson = response.json()
   if 'data' not in responsejson:
     raise HikApiException(f'no data field in response from endpoint {endpoint}, response is {response}, json is {responsejson}')

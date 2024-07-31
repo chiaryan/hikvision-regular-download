@@ -2,7 +2,6 @@ from datetime import date, datetime, timedelta
 from util import *
 from retry import retry as trycall, HikApiTimeoutException
 import backoffsequences
-from requests.exceptions import ConnectionError
 # from stubs import *
 
 TIMEOUT = 8.0
@@ -13,7 +12,7 @@ def tryDownloadUrlEndpoint(downloadId: str) -> str:
     response = hikRequest('/artemis/api/video/v1/downloadURL', {
     'downloadID': downloadId
     })
-  except ConnectionError:
+  except HikApiException:
     raise HikApiTimeoutException
 
   if ('url' in response):
@@ -24,24 +23,31 @@ def tryDownloadUrlEndpoint(downloadId: str) -> str:
 def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterval: datetime):
   beginStr = beginInterval.isoformat()
   endStr = endInterval.isoformat()
-  response = hikRequest('/artemis/api/video/v1/cameras/playbackURLs', {
-    'cameraIndexCode': cameraIndexCode,
-    'recordType': '0',
-    'protocol': 'rtsp',
-    'beginTime': beginStr,
-    'endTime': endStr,
-  })
 
+  try:
+    response = hikRequest('/artemis/api/video/v1/cameras/playbackURLs', {
+      'cameraIndexCode': cameraIndexCode,
+      'recordType': '0',
+      'protocol': 'rtsp',
+      'beginTime': beginStr,
+      'endTime': endStr,
+    })
+  except HikApiException:
+    raise HikApiTimeoutException
   url, authentication = response['url'], response['authentication']
-
-  response = hikRequest('/artemis/api/video/v1/download', {
-    'url': url,
-    'authentication': authentication,
-    'beginTime': beginStr,
-    'endTime': endStr,
-    'videoType': 1
-  })
+  
+  try:
+    response = hikRequest('/artemis/api/video/v1/download', {
+      'url': url,
+      'authentication': authentication,
+      'beginTime': beginStr,
+      'endTime': endStr,
+      'videoType': 1
+    })
+  except HikApiException:
+    raise HikApiTimeoutException
   downloadId = response['downloadID']
+  
   try:
     downloadUrl = ""
     def tryDownload():
@@ -73,6 +79,6 @@ for DATE in DATES:
     for (beginInterval, endInterval) in iterDate(BEGIN_DATETIME, END_DATETIME, timedelta(minutes=1)):
       try:
         trycall(lambda: downloadByCameraId(cid, beginInterval, endInterval), (1 for _ in range(3)))
-      except (HikApiException, requests.exceptions.ConnectionError) as e:
+      except HikApiTimeoutException as e:
         with open('error.log', 'a') as file:
           file.write(f'error downloading from camera {cid} from {beginInterval.isoformat()} to {endInterval.isoformat()}: {str(e)}\n')
