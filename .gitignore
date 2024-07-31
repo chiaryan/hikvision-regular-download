@@ -2,3 +2,4 @@ config.ini
 __pycache__/
 video/
 error.log
+.vscode/

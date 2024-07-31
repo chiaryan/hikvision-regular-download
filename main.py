@@ -1,25 +1,25 @@
 from datetime import date, datetime, timedelta
 from util import *
-from time import sleep
+from retry import retry as trycall, HikApiTimeoutException
+import backoffsequences
+from requests.exceptions import ConnectionError
 # from stubs import *
 
 TIMEOUT = 8.0
 INTERVAL = 0.5
 
-class HikApiTimeoutException(HikApiException):
-  pass
-
-def retrydownloadUrl(downloadId: str):
-  t = 0.0
-  while t <= TIMEOUT:
+def tryDownloadUrlEndpoint(downloadId: str) -> str:
+  try:
     response = hikRequest('/artemis/api/video/v1/downloadURL', {
     'downloadID': downloadId
     })
-    if ('url' in response):
-      return response['url']
-    sleep(INTERVAL)
-    t += INTERVAL
-  raise HikApiTimeoutException
+  except ConnectionError:
+    raise HikApiTimeoutException
+
+  if ('url' in response):
+    return response['url']
+  else:
+    raise HikApiTimeoutException
 
 def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterval: datetime):
   beginStr = beginInterval.isoformat()
@@ -42,12 +42,15 @@ def downloadByCameraId(cameraIndexCode: str, beginInterval: datetime, endInterva
     'videoType': 1
   })
   downloadId = response['downloadID']
-
-  downloadUrl = None
   try:
-    downloadUrl = retrydownloadUrl(downloadId)
+    downloadUrl = ""
+    def tryDownload():
+      nonlocal downloadUrl
+      downloadUrl = tryDownloadUrlEndpoint(downloadId)
+    
+    trycall(tryDownload, backoffsequences.exponential(2, 0.5, 2, 20))
   except HikApiTimeoutException:
-    raise(HikApiException(f'ran out of retries'))
+    raise(HikApiException(f'ran out of retries for /artemis/api/video/v1/download'))
 
   filename = f'video/{cameraIndexCode}/{beginInterval.date().isoformat()}/{beginInterval.isoformat().replace(":", "_")}.mp4'
 
@@ -69,7 +72,7 @@ for DATE in DATES:
   for cid in CAMERA_IDS:
     for (beginInterval, endInterval) in iterDate(BEGIN_DATETIME, END_DATETIME, timedelta(minutes=1)):
       try:
-        downloadByCameraId(cid, beginInterval, endInterval)
+        trycall(lambda: downloadByCameraId(cid, beginInterval, endInterval), (1 for _ in range(3)))
       except (HikApiException, requests.exceptions.ConnectionError) as e:
         with open('error.log', 'a') as file:
           file.write(f'error downloading from camera {cid} from {beginInterval.isoformat()} to {endInterval.isoformat()}: {str(e)}\n')

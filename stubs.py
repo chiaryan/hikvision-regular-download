@@ -15,6 +15,8 @@ def hikRequest(url, data):
       return {
         'url': 'asdf'
       }
+    case _:
+      raise
 
 def downloadFromUrl(filename, url):
   bts = url.encode()
