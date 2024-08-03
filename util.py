@@ -11,6 +11,9 @@ from time import strptime as parsetime
 class InvalidWeekdayError(ConfigParserError):
   pass
 
+class NoCameraListError(ConfigParserError):
+  pass
+
 class HikApiException(Exception):
   pass
 
@@ -25,16 +28,25 @@ def readConfig():
     'USER_SECRET': values['secret'],
     'BEGIN_TIME': time.fromisoformat(values['beginTime']),
     'END_TIME': time.fromisoformat(values['endTime']),
-    'CAMERA_IDS': values['cameras'].split(','),
     'WEEKDAYS': {parsetime(d, '%A').tm_wday for d in values['days'].split(',')} if 'days' in values else set(range(0, 7))
   }
 
   if 'dates' in values:
     ret['DATES'] = [date.fromisoformat(s) for s in values['dates'].split(',')]
 
+  if 'cameraNames' in values:
+    ret['CAMERA_NAMES'] = values['cameraNames'].split(',')
+  elif 'cameraIds' in values:
+    ret['CAMERA_IDS'] = values['cameraIds'].split(',')
+  else:
+    if 'cameras' not in values:
+      raise NoCameraListError('no property cameraNames, cameraIds or cameras')
+    ret['CAMERA_IDS'] = values['cameras'].split(',')
+  
   return ret
 
-OPENAPI_DOMAIN, USER_ID, USER_SECRET = readConfig()['OPENAPI_DOMAIN'], readConfig()['USER_ID'], readConfig()['USER_SECRET']
+CONFIG = readConfig()
+OPENAPI_DOMAIN, USER_ID, USER_SECRET = CONFIG['OPENAPI_DOMAIN'], CONFIG['USER_ID'], CONFIG['USER_SECRET']
 
 def iterDate(start, end, step): 
   ctr = start
@@ -78,7 +90,29 @@ x-ca-key:{USER_ID}
   if 'data' not in responsejson:
     raise HikApiException(f'no data field in response from endpoint {endpoint}, response is {response}, json is {responsejson}')
   return response.json()['data']
-  
+
+def findCamera(cameraInfos: list[dict[str, str]], property: str, value: str) -> dict[str, str]:
+  return next(c for c in cameraInfos if c[property] == value)
+
+def getCameraIdsFromNames(names: list[str]) -> list[str]:
+  response = hikRequest('/artemis/api/resource/v1/cameras', {
+    'pageNo': 1,
+    'pageSize': 500,
+    'bRecordSetting': 0
+  })
+  cameraInfos: list[dict[str, str]] = response['list']
+
+  return [findCamera(cameraInfos, 'cameraName', cn)['cameraIndexCode'] for cn in names]
+
+def getCameraNamesFromIds(ids: list[str]) -> list[str]:
+  response = hikRequest('/artemis/api/resource/v1/cameras', {
+    'pageNo': 1,
+    'pageSize': 500,
+    'bRecordSetting': 0
+  })
+  cameraInfos: list[dict[str, str]] = response['list']
+
+  return [findCamera(cameraInfos, 'cameraIndexCode', cid)['cameraName'] for cid in ids]
 
 def downloadFromUrl(filename, url):
   bts = requests.request('GET', url, verify=False).content
